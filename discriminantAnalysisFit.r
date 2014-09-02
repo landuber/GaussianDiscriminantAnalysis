@@ -13,33 +13,55 @@ buildTrain <- function(sets=1, num, mu) {
 }
 
 
-
-
 discriminantAnalysisFit <- function(X, y, type, lambda=c(), R=c(), V=c(), pseudoCount=1) {
         
-        model.modelType = 'discriminantAnalysis'
-        model.lambda = lambda
-        model.type = type
+        modelType = 'discriminantAnalysis'
+        lambda = lambda
+        type = type
         
-        classes <- levels(factor(y))
-        Nclasses <- length(classes)
-        model.Nclasses <- Nclasses
+        y <- factor(y, labels=1:length(unique(y)), ordered=TRUE)
+        
+        support <- levels(y)
+        Nclasses <- length(support)
+        Nclasses <- Nclasses
+        classPrior <- c()
         Nclass <- table(y)
+        
         
         
         
         dimX <- dim(X)
         N <- dimX[1]
         D <- dimX[2]
-        model.mu = matrix(0, nrow=D, ncol=Nclasses)
-        model.classPrior <- c()
+        mu = matrix(0, nrow=D, ncol=Nclasses)
+        SigmaPooled = matrix(0, ncol=D, nrow=D)
+        classPrior <- c()
         xbar <- mean(X)
         for(k in 1:Nclasses) {
-                ndx <- (y == classes[k])
-                model.mu[, k] <- t(apply(X[ndx, ], 2, mean))
+                ndx <- (y == k)
+                classPrior[k] <- Nclass[k] + pseudoCount
+                mu[, k] <- t(apply(X[ndx, ], 2, mean))
         }
         
+        classPrior = classPrior / sum(classPrior)
         
+        switch(tolower(type),
+               lda = {   
+                       for(c in 1:Nclasses) {
+                               ndx = (y == c)
+                               nc <- sum(ndx)
+                               dat = X[ndx, ]
+                               Sigma <- cov(dat)
+                               SigmaPooled = SigmaPooled + (nc - 1) * Sigma
+                               
+                       }
+                       SigmaPooled = SigmaPooled/N
+               },
+               {
+                     print('invalid type')   
+               }
+        )
+
         
-        return(model.mu)   
+        return(list(modelType=modelType, type=type, support=support, Nclasses=Nclasses, classPrior=classPrior, mu=mu, SigmaPooled=SigmaPooled))   
 }
